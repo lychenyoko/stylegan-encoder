@@ -8,7 +8,7 @@ import bz2
 import PIL.Image
 from PIL import ImageFilter
 import numpy as np
-from keras.models import Model
+from tensorflow.keras.models import Model
 from keras.utils import get_file
 from keras.applications.vgg16 import VGG16, preprocess_input
 import keras.backend as K

@@ -10,9 +10,13 @@ import dnnlib.tflib as tflib
 import config
 from encoder.generator_model import Generator
 from encoder.perceptual_model import PerceptualModel, load_images
-#from tensorflow.keras.models import load_model
-from keras.models import load_model
+from tensorflow.keras.models import load_model
+#from keras.models import load_model
 from keras.applications.resnet50 import preprocess_input
+
+FFHQ_CKPT = './pretrained_ckpt/karras2019stylegan-ffhq-1024x1024.pkl'  # karras2019stylegan-ffhq-1024x1024.pkl
+DISCO_CKPT = './pretrained_ckpt/DiscoFaceGAN_CKPT_256.pkl'
+PERCEPTUAL_MODEL_CKPT = './pretrained_ckpt/vgg16_zhang_perceptual.pkl'
 
 def split_to_batches(l, n):
     for i in range(0, len(l), n):
@@ -37,7 +41,8 @@ def main():
     parser.add_argument('--mask_dir', default='masks', help='Directory for storing optional masks')
     parser.add_argument('--load_last', default='', help='Start with embeddings from directory')
     parser.add_argument('--dlatent_avg', default='', help='Use dlatent from file specified here for truncation instead of dlatent_avg from Gs')
-    parser.add_argument('--model_url', default='https://drive.google.com/uc?id=1MEGjdvVpUsu1jB4zrXZN7Y4kBBOzizDQ', help='Fetch a StyleGAN model to train on from this URL') # karras2019stylegan-ffhq-1024x1024.pkl
+    # parser.add_argument('--model_url', default='https://drive.google.com/uc?id=1MEGjdvVpUsu1jB4zrXZN7Y4kBBOzizDQ', help='Fetch a StyleGAN model to train on from this URL') # karras2019stylegan-ffhq-1024x1024.pkl
+    parser.add_argument('--generator_ckpt', default=FFHQ_CKPT, help='The checkpoint of the generator for projection', type=str)
     parser.add_argument('--model_res', default=1024, help='The dimension of images in the StyleGAN model', type=int)
     parser.add_argument('--batch_size', default=1, help='Batch size for generator and perceptual model', type=int)
     parser.add_argument('--optimizer', default='ggt', help='Optimization algorithm used for optimizing dlatents')
@@ -76,7 +81,7 @@ def main():
 
     # Masking params
     parser.add_argument('--load_mask', default=False, help='Load segmentation masks', type=str2bool, nargs='?', const=True)
-    parser.add_argument('--face_mask', default=True, help='Generate a mask for predicting only the face area', type=str2bool, nargs='?', const=True)
+    parser.add_argument('--face_mask', default=False, help='Generate a mask for predicting only the face area', type=str2bool, nargs='?', const=True)
     parser.add_argument('--use_grabcut', default=True, help='Use grabcut algorithm on the face mask to better segment the foreground', type=str2bool, nargs='?', const=True)
     parser.add_argument('--scale_mask', default=1.4, help='Look over a wider section of foreground for grabcut', type=float)
     parser.add_argument('--composite_mask', default=True, help='Merge the unmasked area back into the generated image', type=str2bool, nargs='?', const=True)
@@ -112,8 +117,10 @@ def main():
 
     # Initialize generator and perceptual model
     tflib.init_tf()
-    with dnnlib.util.open_url(args.model_url, cache_dir=config.cache_dir) as f:
-        generator_network, discriminator_network, Gs_network = pickle.load(f)
+#    with dnnlib.util.open_url(args.model_url, cache_dir=config.cache_dir) as f:
+#        generator_network, discriminator_network, Gs_network = pickle.load(f)
+
+    generator_network, discriminator_network, Gs_network = pickle.load(open(args.generator_ckpt, 'rb'))
 
     generator = Generator(Gs_network, args.batch_size, clipping_threshold=args.clipping_threshold, tiled_dlatent=args.tile_dlatents, model_res=args.model_res, randomize_noise=args.randomize_noise)
     if (args.dlatent_avg != ''):
@@ -121,8 +128,7 @@ def main():
 
     perc_model = None
     if (args.use_lpips_loss > 0.00000001):
-        with dnnlib.util.open_url('https://drive.google.com/uc?id=1N2-m9qszOeVC9Tq77WxsLnuWwOedQiD2', cache_dir=config.cache_dir) as f:
-            perc_model =  pickle.load(f)
+        perc_model = pickle.load(open(PERCEPTUAL_MODEL_CKPT, 'rb'))
     perceptual_model = PerceptualModel(args, perc_model=perc_model, batch_size=args.batch_size)
     perceptual_model.build_perceptual_model(generator, discriminator_network)
 
