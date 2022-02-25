@@ -1,0 +1,1 @@
+python encode_images.py --batch_size=1 --generator_ckpt=./pretrained_ckpt/DiscoFaceGAN_CKPT_256.pkl --model_res=256  --iterations=1000 --use_l1_penalty=0.2 --early_stopping=False  --output_video=True aligned_image_DisCo/ generated_images/ latent_representations/
